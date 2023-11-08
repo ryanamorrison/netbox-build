@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: "Include netbox-build"
+      ansible.builtin.include_role:
+        name: netbox-build
+
+    - name: check for execution of last task
+      ansible.builtin.stat:
+        path: {{ var_backup_dir }}/backup.log
+      register: backup_log
+
+    - ansible.builtin.assert:
+        that:
+          - backup_log.stat.exists
+

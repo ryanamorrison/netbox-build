@@ -1,0 +1,8 @@
+---
+- hosts: netbox
+  become: true
+  become_method: sudo
+
+  roles:
+    - { role: netbox-build }
+

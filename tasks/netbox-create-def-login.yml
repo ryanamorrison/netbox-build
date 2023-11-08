@@ -1,0 +1,48 @@
+- name: ensure netbox venv script is executable 
+  ansible.builtin.file:
+    path: /opt/netbox/venv/bin/activate
+    mode: o+x
+  tags:
+  - netbox
+  - default_login
+
+#this next bit it to automate inside the venv since 
+#that's where one must create the initial/superuser account
+- name: add a line to activate file
+  ansible.builtin.lineinfile:
+    path: /opt/netbox/venv/bin/activate
+    line: "(export DJANGO_SUPERUSER_PASSWORD='{{ var_nb_superuser_pass }}';cd /opt/netbox/netbox;python3 manage.py createsuperuser --no-input --username {{ var_nb_superuser }} --email {{ var_nb_superuser_email }})"
+    state: present
+  when: netboxdir_result.stat.exists == false
+  no_log: True
+  tags:
+  - netbox
+  - default_login
+
+- name: activate venv and create user
+  shell: source /opt/netbox/venv/bin/activate && deactivate
+  args:
+    executable: /bin/bash
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - default_login
+    
+- name: remove line from activate file
+  ansible.builtin.lineinfile:
+    path: /opt/netbox/venv/bin/activate
+    line: "(export DJANGO_SUPERUSER_PASSWORD='{{ var_nb_superuser_pass }}';cd /opt/netbox/netbox;python3 manage.py createsuperuser --no-input --username {{ var_nb_superuser }} --email {{ var_nb_superuser_email }})"
+    state: absent
+  when: netboxdir_result.stat.exists == false
+  no_log: True
+  tags:
+  - netbox
+  - default_login
+
+#house-keeping to ensure proper directory permissions now that the above has been completed
+- name: ensure netbox config file permissions
+  ansible.builtin.file:
+    path: "{{ var_netbox_configuration_file }}"
+    owner: "{{ var_unix_user_name }}"
+    group: "{{ var_unix_user_name }}"
+    mode: o-r 

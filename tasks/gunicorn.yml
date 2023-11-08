@@ -1,0 +1,10 @@
+- name: ensure gunicorn configuration file
+  ansible.builtin.copy:
+    src: /opt/netbox/contrib/gunicorn.py
+    dest: /opt/netbox/gunicorn.py
+    owner: netbox
+    group: netbox
+    remote_src: yes
+  tags:
+  - gunicorn 
+  

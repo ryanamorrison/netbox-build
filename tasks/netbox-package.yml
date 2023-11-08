@@ -1,0 +1,65 @@
+- name: ensure a tar repo directory
+  ansible.builtin.file:
+    path: /opt/repo
+    state: directory
+    mode: 0750
+    owner: root
+    group: root
+  tags:
+  - netbox
+  - package
+
+- name: ensure latest pinned version is present
+  get_url:
+    url: "https://github.com/netbox-community/netbox/archive/v{{var_pinned_version}}.tar.gz"
+    dest: "/opt/repo/v{{ var_pinned_version }}.tar.gz"
+    owner: root
+    group: root
+    mode: 0640
+  tags:
+  - netbox
+  - package
+
+- name: check to see if untarred directory exists
+  ansible.builtin.stat:
+    path: "/opt/netbox-{{ var_pinned_version }}"
+  register: netboxdir_result
+
+- ansible.builtin.debug:
+    msg: "{{ netboxdir_result }}"
+
+# this fires even if the archive exists
+- name: ensure latest pinned version is untarred
+  ansible.builtin.unarchive:
+    src: "/opt/repo/v{{ var_pinned_version }}.tar.gz" 
+    dest: /opt
+    remote_src: yes
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - package
+
+- name: ensure softlink to pinned version
+  ansible.builtin.file:
+    src: "/opt/netbox-{{ var_pinned_version }}"
+    dest: /opt/netbox
+    owner: "{{ var_unix_user_name }}" 
+    group: "{{ var_unix_user_name }}"
+    state: link
+  tags:
+  - netbox
+  - package
+
+- name: recursively change ownership on all files in netbox media file tree
+  shell: chown --recursive {{ var_unix_user_name }} /opt/netbox/
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - package
+
+- name: recursively change group on all files in netbox media file tree
+  shell: chgrp --recursive {{ var_unix_user_name }} /opt/netbox/
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - package

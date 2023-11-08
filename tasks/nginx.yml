@@ -1,0 +1,48 @@
+- name: ensure nginx 
+  ansible.builtin.package:
+    name: "nginx" 
+    state: present
+  tags:
+  - nginx 
+  - webserver
+  - web-server
+
+- name: ensure sites available config file
+  ansible.builtin.template:
+    src: nginx-netbox.j2 
+    dest: "/etc/nginx/sites-available/{{ var_service_name }}"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+  - nginx 
+  - webserver
+  - web-server
+
+- name: ensure sites enabled link
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ var_service_name }}" 
+    dest: "/etc/nginx/sites-enabled/{{ var_service_name }}"
+    state: link
+  tags:
+  - nginx 
+  - webserver
+  - web-server
+
+- name: ensure the wwwuser is in netbox group
+  ansible.builtin.user:
+    name: 'www-data'
+    groups: netbox
+    append: yes
+  tags:
+  - nginx 
+  - webserver
+  - web-server
+
+- name: ensure default website link is absent
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default 
+    state: absent
+  tags:
+  - nginx 
+  - webserver

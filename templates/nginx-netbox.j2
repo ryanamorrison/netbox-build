@@ -1,0 +1,39 @@
+#{{ ansible_managed }}
+server {
+    #both stacks
+    #listen [::]:443 ssl ipv6only=off;
+    #ipv4 only
+    listen 443 ssl;
+
+    # CHANGE THIS TO YOUR SERVER'S NAME
+    server_name {{ var_service_url_string | replace(","," ") | replace("[","") | replace("]","") }};
+
+    #managed by certbot
+    ssl_certificate /etc/letsencrypt/live/{{ var_global_service_url }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ var_global_service_url }}/privkey.pem;
+	ssl_dhparam {{ var_dhparam_file }};
+
+    client_max_body_size 25m;
+
+    location /static/ {
+        alias /opt/netbox/netbox/static/;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    # Redirect HTTP traffic to HTTPS
+    #both stacks
+    #listen [::]:80 ipv6only=off;
+    #ipv4 only
+    listen 80;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
+

@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  remote_user: root
+  tasks:
+    - name: check for url
+      ansible.builtin.uri:
+        url: "https://{{ var_global_service_url }}"
+        method: GET
+      register: _result
+      until: _result.status == 200
+      retries: 180
+      delay: 5

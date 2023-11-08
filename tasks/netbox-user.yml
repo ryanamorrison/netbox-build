@@ -1,0 +1,16 @@
+- name: ensure a netbox user group
+  ansible.builtin.group:
+    name: "{{ var_unix_user_name }}"
+  tags:
+  - netbox
+  - users
+
+- name: ensure a network user
+  ansible.builtin.user:
+    name: "{{ var_unix_user_name }}"
+    comment: Netbox application service account
+    group: "{{ var_unix_user_name }}"
+    system: yes
+  tags:
+  - netbox
+  - users

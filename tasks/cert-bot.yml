@@ -1,0 +1,231 @@
+#https://certbot-dns-cloudflare.readthedocs.io/en/stable/
+#https://snapcraft.io/install/certbot-dns-cloudflare/ubuntu
+- name: ensure ansible facts that pertain to letsencrypt and certbot
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/ansible/facts.d/{{ item }}"
+    owner: root
+    group: root
+    mode: 0750
+  with_items:
+  - letsencrypt.fact
+  - certbot.fact
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure key and cert access group exists
+  ansible.builtin.group:
+    name: "{{ var_key_group_name }}" 
+    state: present
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure www-data is part of key and cert access group
+  ansible.builtin.user:
+    name: www-data
+    groups: "{{ var_key_group_name }}"
+    append: yes
+  tags:
+  - certbot 
+  - cert-bot
+
+# requires `ansible-galaxy collection install community.general`
+- name: ensure cert-bot
+  community.general.snap:
+    name: certbot
+    state: present
+    classic: yes
+  register: result_certbot_install 
+  tags:
+  - certbot 
+  - cert-bot
+  #notify: certbot containment
+
+- name: ensure binary link with snap link
+  ansible.builtin.file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure a certbox directory in etc
+  ansible.builtin.file:
+    path: "{{ var_certbot_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750' 
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure trust for certbot plugins
+  shell: snap set certbot trust-plugin-with-root=ok
+  when: result_certbot_install.changed
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: configure certbot cloudflare DNS
+  community.general.snap:
+    name: certbot-dns-cloudflare
+    state: present
+    classic: yes
+  when: result_certbot_install.changed
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure cloudflare file
+  ansible.builtin.template:
+    src: cloudflare-dns 
+    dest: "{{ var_cloudflare_file }}"
+    owner: root 
+    group: root
+    #this file contains secrets, do not set 'o' for anything
+    mode: '0640'
+  tags:
+  - certbot 
+  - cert-bot
+
+#this doesn't necessarily mean a new system but its a very high
+#probability that the fact does not exist because it was just 
+#deployed above
+- name: register certbot (if fact is missing)
+  shell: certbot register --register-unsafely-without-email --agree-tos
+  ignore_errors: yes
+  when: ansible_local.letsencrypt.account_uuid is not defined or ansible_local.letsencrypt.account_uuid == ""
+  notify: restart netbox and nginx
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: check for existing cert
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ var_global_service_url }}/fullchain.pem
+  register: service_cert
+  changed_when: false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set noop command string
+  ansible.builtin.set_fact: 
+    fact_noop_string: "certbot certonly --preferred-challenges dns-01 --dns-cloudflare --dns-cloudflare-credentials {{ var_cloudflare_file }} {{ var_domain_string[:-3]}} -i nginx --dry-run"
+  changed_when: false
+  when: service_cert.stat.exists == false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: show the command string 
+  ansible.builtin.debug:  
+    msg: "{{ fact_noop_string }}"
+  changed_when: false
+  when: service_cert.stat.exists == false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure certbot is configured
+  shell: "{{ fact_noop_string }}"
+  changed_when: false
+  when: service_cert.stat.exists == false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set command string
+  ansible.builtin.set_fact: 
+    fact_cmd_string: "{{ fact_noop_string[:-10] }} -n"
+  changed_when: false
+  when: service_cert.stat.exists == false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: show the command string 
+  ansible.builtin.debug:  
+    msg: "{{ fact_cmd_string }}"
+  changed_when: false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: ensure valid certifcate (on a new system)
+  shell: "{{ fact_cmd_string }}"
+  when: service_cert.stat.exists == false
+  notify: 
+  - restart netbox and nginx 
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: show certificates
+  shell: certbot certificates
+  changed_when: false
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set cert path fact
+  ansible.builtin.set_fact: 
+    fact_cert_path: "/etc/letsencrypt/live/{{ var_global_service_url }}/fullchain.pem"
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set perms on certificate files
+  file:
+    path: "{{ fact_cert_path }}"
+    group: "{{ var_key_group_name }}"
+    follow: yes
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set perms on key files
+  file:
+    path: /etc/letsencrypt/live/{{ var_global_service_url }}/privkey.pem
+    group: "{{ var_key_group_name }}"
+    follow: yes
+  tags:
+  - certbot 
+  - cert-bot
+
+#not using renew option as certonly works just as well and the plugins work better with certonly
+- name: set a renewal job for every Monday
+  ansible.builtin.cron:
+    name: cert renewal check-mon
+    weekday: "1"
+    minute: "22"
+    hour: "12"
+    user: root
+    job: "{{ fact_cmd_string }} && chgrp {{ var_key_group_name }} {{ fact_cert_path }}"
+    cron_file: cert_renewal_check_mon
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: set a renewal job for every Friday
+  ansible.builtin.cron:
+    name: cert renewal check-fri
+    weekday: "5"
+    minute: "33"
+    hour: "13"
+    user: root
+    job: "{{ fact_cmd_string }} && chgrp {{ var_key_group_name }} {{ fact_cert_path }}"
+    cron_file: cert_renewal_check_fri
+  tags:
+  - certbot 
+  - cert-bot
+
+- name: flush certbot handlers
+  meta: flush_handlers
+  tags:
+  - certbot 
+  - cert-bot

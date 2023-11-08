@@ -1,0 +1,63 @@
+- name: check for existing netbox systemd file
+  ansible.builtin.stat:
+    path: /etc/systemd/system/netbox.service
+  register: nb_service
+  changed_when: false
+  tags:
+  - netbox
+  - services
+
+- name: ensure netbox systemd file
+  ansible.builtin.copy:
+    src: /opt/netbox/contrib/netbox.service
+    dest: /etc/systemd/system/netbox.service 
+    owner: root
+    group: root
+    remote_src: yes
+  when: nb_service.stat.exists == false
+  notify: 
+  - reload systemd
+  - restart netbox services
+  tags:
+  - netbox
+  - services
+  
+- name: check for existing netbox-rq systemd file
+  ansible.builtin.stat:
+    path: /etc/systemd/system/netbox-rq.service
+  register: nb_rq_service
+  changed_when: false
+  tags:
+  - netbox
+  - services
+
+- name: ensure netbox-rq systemd file
+  ansible.builtin.copy:
+    src: /opt/netbox/contrib/netbox-rq.service
+    dest: /etc/systemd/system/netbox-rq.service 
+    owner: root
+    group: root
+    remote_src: yes
+  when: nb_rq_service.stat.exists == false
+  notify: 
+  - reload systemd
+  - restart netbox services
+  tags:
+  - netbox
+  - services
+  
+- name: flush systemd handlers
+  meta: flush_handlers
+  tags:
+  - netbox
+  - services
+
+- name: ensure netbox-rq service 
+  ansible.builtin.service:
+    name: netbox-rq
+    state: started
+    enabled: yes
+  tags:
+  - netbox
+  - services
+

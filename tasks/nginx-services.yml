@@ -1,0 +1,19 @@
+- name: ensure nginx service is active
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: yes
+  notify:
+  - nginx check
+  - restart netbox services
+  tags:
+  - nginx
+  - webserver
+  - web-server
+
+- name: flush nginx handlers
+  meta: flush_handlers
+  tags:
+  - nginx
+  - webserver
+  - web-server

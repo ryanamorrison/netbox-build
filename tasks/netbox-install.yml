@@ -1,0 +1,8 @@
+- name: ensure netbox is installed
+  shell: /opt/netbox/upgrade.sh
+  register: command_result
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - install 
+

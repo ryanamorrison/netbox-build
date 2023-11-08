@@ -1,0 +1,4 @@
+#!/bin/bash
+#returns facts about certbot
+
+echo "{\" version\":\"$(certbot --version | awk -F" " '{ print $2 }')\"}"

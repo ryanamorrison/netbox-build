@@ -1,0 +1,47 @@
+---
+# handlers file for netbox-build
+- name: postgres version check
+  postgresql_info:
+    filter: ver*,ext*
+  become: yes
+  become_user: postgres
+
+- name: database check
+  postgresql_info:
+    filter: database_name
+  become: yes
+  become_user: postgres
+
+- name: postgres user check
+  postgresql_info:
+    filter: roles
+  become: yes
+  become_user: postgres
+
+- name: redis ping
+  shell: redis-cli ping
+
+- name: update pip
+  shell: pip3 install --upgrade pip
+
+- name: reload systemd
+  shell: systemctl daemon-reload 
+
+- name: nginx check 
+  shell: nginx -t
+  register: ngnix_test_result
+
+- name: restart netbox services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+  - netbox
+  - netbox-rq
+  listen: "restart netbox and nginx"
+
+- name: restart nginx
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+  listen: "restart netbox and nginx"

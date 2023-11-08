@@ -1,0 +1,22 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+platforms:
+  - name: netbox-on-ubuntu-22
+    box: generic/ubuntu2204
+    cpu: 2
+    memory: 1536
+    interfaces:
+      - network_name: private_network
+        ip: 192.168.56.16
+provisioner:
+  name: ansible
+  config_options:
+    ssh_connection:
+      ssh_args: -o StrictHostKeyChecking=no -o User=vagrant
+      timeout: 300
+verifier:
+  name: ansible
+

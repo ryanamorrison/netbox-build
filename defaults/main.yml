@@ -1,0 +1,38 @@
+---
+# defaults file for netbox-build
+
+#service name: see vars/main.yml
+#var_service_domain: see vars/main, override in inventory
+
+#global service url (as in GLB or DNS-anycast)
+var_global_service_url: "{{ var_service_name }}.{{ var_service_domain }}"
+
+#URL aliases (as reflected in DNS entries)
+var_service_url_string: "'{{ var_global_service_url }}','{{ ansible_fqdn }}'"
+
+#database credentials 
+var_db_service_user: "{{ var_service_name }}"
+#var_db_service_pass -- create a vault file and provide
+
+#pinned version 
+#changing this will install an additional version
+var_pinned_version: 3.0.7
+
+#netbox superuser login 
+var_nb_superuser: 'netbox-admin'
+var_nb_superuser_email: '{{ var_nb_superuser }}@{{ var_service_domain }}'
+#var_nb_superuser_pass -- create a vault file and provide
+
+#key/cert access unix group
+var_key_group_name: keyaccess
+
+#crypto
+var_dhparam_file: /etc/ssl/rsa4096.dhparam.pem
+
+#var_cloudflare_token_for_netbox -- see vault file, 1Pass for ansible vault pass
+var_certbot_dir: /etc/certbot
+var_cloudflare_file: "{{ var_certbot_dir }}/cloudflare.ini"
+
+#base working directory for backups and storage of backups
+var_backup_dir: "/backup"
+

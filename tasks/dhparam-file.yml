@@ -1,0 +1,6 @@
+- name: ensure dhparam file (this may take a while)
+  community.crypto.openssl_dhparam:
+    path: "{{ var_dhparam_file }}"
+    owner: root
+    mode: 0640
+    state: present

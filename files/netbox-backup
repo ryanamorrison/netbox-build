@@ -1,0 +1,92 @@
+#!/bin/bash
+#https://netbox.readthedocs.io/en/stable/administration/replicating-netbox/
+
+VAR_DATE="$(date +%Y-%m-%d--%H-%M)"
+VAR_BACK_DIR="/backup"
+if [ ! -d $VAR_BACK_DIR ]; then
+
+  echo "Backup destination not configured. Exiting ..."
+  logger -si -p user.error -t $VAR_DATE "directory $VAR_BACK_DIR not found, unable to backup netbox"
+  exit 1
+
+else
+  VAR_LOG_FILE="$VAR_BACK_DIR/backup.log"
+  if [ ! -f $VAR_LOG_FILE ]; then
+    echo "No log file found, creating one ..."
+    touch $VAR_LOG_FILE
+    chmod 600 $VAR_LOG_FILE
+    chown root:root $VAR_LOG_FILE
+  fi
+
+  VAR_BACKUP_NAME="netbox-backup-$VAR_DATE"
+
+  VAR_WORK_DIR="$VAR_BACK_DIR/$VAR_BACKUP_NAME"
+  logger -si -p user.info -t $VAR_DATE "begin backup" 2>> $VAR_LOG_FILE
+  echo "Found backup directory, checking for a working directory ..."
+  if [ -d $VAR_WORK_DIR ]; then
+    logger -si -p user.error -t $VAR_DATE "found prior working directory" 2>> $VAR_LOG_FILE
+    echo "Found previous $VAR_WORK_DIR working directory, removing prior directory and its contents ..."
+    rm -f $VAR_WORK_DIR/*
+    rmdir $VAR_WORK_DIR
+    logger -si -p user.error -t $VAR_DATE "removed prior working directory" 2>> $VAR_LOG_FILE
+  fi
+
+  echo "Creating working directory, $VAR_WORK_DIR ..."
+  mkdir $VAR_WORK_DIR
+  logger -si -p user.info -t $VAR_DATE "created new working directory" 2>> $VAR_LOG_FILE
+
+  echo "Making database backup ..."
+  VAR_DB_DUMP="$VAR_WORK_DIR/postgresdump-all.sql"
+  su - postgres -c 'pg_dumpall -c -f /tmp/db.out'
+  mv /tmp/db.out $VAR_DB_DUMP
+  VAR_SIZE="$(du -h $VAR_DB_DUMP | awk -F" " '{print $1}')"
+  logger -si -p user.info -t $VAR_DATE "created database backup with size of $VAR_SIZE" 2>> $VAR_LOG_FILE
+  
+  VAR_MEDIA_DUMP="$VAR_WORK_DIR/netbox-files-all.tar.gz"
+  if [ -d /opt/netbox/netbox ]; then
+    echo "Backing up netbox media files ..."
+    tar -C /opt/netbox -czf $VAR_MEDIA_DUMP netbox/media
+    VAR_SIZE="$(du -h $VAR_MEDIA_DUMP | awk -F" " '{print $1}')"
+    logger -si -p user.info -t $VAR_DATE "created tar of media files with size of $VAR_SIZE" 2>> $VAR_LOG_FILE
+  else
+    echo "Application directory not found, unable to backup media files."
+    logger -si -p user.error -t $VAR_DATE "application directory not found, no media files backed up" 2>> $VAR_LOG_FILE
+  fi 
+  
+  if [ -f /etc/nginx/sites-available/netbox ]; then
+    echo "Backing up nginx files ..."
+    cp /etc/nginx/sites-available/netbox $VAR_WORK_DIR/
+    logger -si -p user.info -t $VAR_DATE "backed up nginx config file" 2>> $VAR_LOG_FILE
+  else
+    echo "Unable to locate nginx file, skipping..."
+    logger -si -p user.error -t $VAR_DATE "nginx file not found" 2>> $VAR_LOG_FILE
+  fi
+
+  if [ -f /opt/netbox/netbox/netbox/configuration.py ]; then
+    echo "Backing up netbox configuration file ..."
+    cp /opt/netbox/netbox/netbox/configuration.py $VAR_WORK_DIR/
+    logger -si -p user.info -t $VAR_DATE "backed up netbox config file" 2>> $VAR_LOG_FILE
+  else
+    echo "Unable to locate netbox configuration file, skipping..."
+    logger -si -p user.error -t $VAR_DATE "netbox config file not found" 2>> $VAR_LOG_FILE
+  fi
+
+  echo "showing contents of working directory ..."
+  ls -lah $VAR_WORK_DIR
+  logger -si -p user.info -t $VAR_DATE "verified contents of working directory" 2>> $VAR_LOG_FILE
+  VAR_TAR="$VAR_BACK_DIR/$VAR_BACKUP_NAME.tar.gz"
+  tar -czvf $VAR_TAR $VAR_WORK_DIR
+  VAR_SIZE="$(du -h $VAR_TAR | awk -F" " '{print $1}')"/opt/netbox/netbox/netbox/configuration.py
+  logger -si -p user.info -t $VAR_DATE "created backup tar file with size of $VAR_SIZE" 2>> $VAR_LOG_FILE
+
+  echo "showing contents of tar file ..."
+  tar -tvf $VAR_TAR
+  logger -si -p user.info -t $VAR_DATE "verified backup tar file contents" 2>> $VAR_LOG_FILE
+
+  echo "removing working directory ..."
+  rm $VAR_WORK_DIR/*
+  logger -si -p user.info -t $VAR_DATE "removed working directory contents" 2>> $VAR_LOG_FILE
+  rmdir $VAR_WORK_DIR
+  logger -si -p user.info -t $VAR_DATE "removed working directory" 2>> $VAR_LOG_FILE
+  logger -si -p user.info -t $VAR_DATE "finished backup" 2>> $VAR_LOG_FILE
+fi

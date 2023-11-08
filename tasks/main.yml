@@ -1,0 +1,19 @@
+---
+# task files for netbox-build
+- include_tasks: hosts-file.yml
+- include_tasks: facts.yml
+- include_tasks: postgres.yml
+- include_tasks: redis.yml
+- include_tasks: netbox-python-deps.yml
+- include_tasks: netbox-user.yml
+- include_tasks: netbox-package.yml 
+- include_tasks: netbox-config-file.yml
+- include_tasks: netbox-install.yml
+- include_tasks: netbox-create-def-login.yml
+- include_tasks: gunicorn.yml
+- include_tasks: netbox-services.yml
+- include_tasks: dhparam-file.yml
+- include_tasks: nginx.yml
+- include_tasks: cert-bot.yml 
+- include_tasks: nginx-services.yml
+- include_tasks: netbox-backup.yml

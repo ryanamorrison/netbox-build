@@ -1,0 +1,13 @@
+#this really should be handled by automated provisioning but in case it wasn't
+- name: ensure hosts file is correct based on ansible inventory
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: 127.0.1.1 {{ inventory_hostname }} {{ ansible_hostname }}
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: ensure hostname is correct based on ansible inventory
+  ansible.builtin.hostname:
+    name: "{{ ansible_hostname }}"

@@ -1,0 +1,43 @@
+- name: ensure netbox config file
+  ansible.builtin.template:
+    src: configuration.py.j2
+    dest: "{{ var_netbox_configuration_file }}" 
+    owner: "{{ var_unix_user_name }}" 
+    group: "{{ var_unix_user_name }}" 
+    #even though this file contains secrets, set 'o' for now as its needed
+    #during superuser generation.  
+    mode: '0644'
+  when: netboxdir_result.stat.exists == false
+  tags:
+  - netbox
+  - config-file
+
+- name: create a key if a new version was unarchived 
+  shell: python3 /opt/netbox/netbox/generate_secret_key.py
+  register: command_result
+  when: netboxdir_result.stat.exists == false
+  no_log: True
+  tags:
+  - netbox
+  - config-file
+
+- name: ensure that key exists in config file
+  ansible.builtin.lineinfile:
+    path: "{{ var_netbox_configuration_file }}"
+    regexp: "^SECRET_KEY = .*"
+    line: "SECRET_KEY = '{{ command_result.stdout }}'"
+  when: netboxdir_result.stat.exists == false
+  no_log: True
+  tags:
+  - netbox
+  - config-file
+
+#the installer has changed a couple of times where it looks for this
+- name: ensure a link to the file exists in a different directory
+  ansible.builtin.file:
+    src: "{{ var_netbox_configuration_file }}" 
+    dest: "{{ var_netbox_configuration_file_alt_location }}" 
+    owner: "{{ var_unix_user_name }}"
+    group: "{{ var_unix_user_name }}"
+    state: link 
+

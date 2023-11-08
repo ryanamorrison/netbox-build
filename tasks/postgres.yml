@@ -1,0 +1,69 @@
+- name: ensure postgres
+  ansible.builtin.package:
+    name: 
+      - postgresql
+      - libpq-dev
+      - python3-psycopg2 
+    state: present
+  tags:
+  - postgres
+  - database
+  notify:
+  - postgres version check
+
+- name: ensure postgres service
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: yes
+  tags:
+  - postgres
+  - database
+  notify:
+  - postgres version check
+
+- name: ensure netbox database
+  postgresql_db:
+    name: "{{ var_service_name }}"
+    state: present
+  become: yes
+  become_user: postgres
+  tags:
+  - postgres
+  - database
+  notify:
+  - database check
+
+- name: ensure netbox user
+  postgresql_user:
+    name: "{{var_db_service_user }}" 
+    password: "{{ var_db_service_pass }}"
+    state: present
+  become: yes
+  become_user: postgres
+  tags:
+  - postgres
+  - database
+  notify:
+  - postgres user check
+
+- name: ensure netbox user privs
+  postgresql_privs:
+    type: database
+    database: "{{ var_service_name }}"
+    role: "{{var_db_service_user }}" 
+    privs: all
+    grant_option: no
+  become: yes
+  become_user: postgres
+  tags:
+  - postgres
+  - database
+  notify:
+  - postgres user check
+
+- name: flush postgres handlers
+  meta: flush_handlers
+  tags:
+  - postgres
+  - database

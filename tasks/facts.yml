@@ -1,0 +1,30 @@
+#this should be its own role and/or handled as part of a provisioning process
+
+- name: ensure automation group exists
+  ansible.builtin.group:
+    name: "{{ var_ansible_service_account_group_name }}" 
+    state: present
+  tags:
+  - facts
+  - automation
+
+- name: ensure facts directory on target
+  ansible.builtin.file:
+    path: "/etc/{{ item }}"
+    owner: root
+    group: "{{ var_ansible_service_account_group_name }}"
+    mode: 0770
+    state: directory
+  with_items:
+  - "ansible"
+  - "ansible/facts.d"
+  tags:
+  - facts
+
+- name: ensure jq
+  ansible.builtin.package:
+    name: jq
+    state: present
+  tags:
+  - facts
+  - jq

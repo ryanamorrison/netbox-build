@@ -1,0 +1,15 @@
+- name: ensure redis
+  ansible.builtin.package:
+    name: redis-server 
+    state: present
+  tags:
+  - redis
+  - database
+  notify:
+  - redis ping
+
+- name: flush redis handlers
+  meta: flush_handlers
+  tags:
+  - redis
+  - database

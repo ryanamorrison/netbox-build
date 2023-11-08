@@ -1,0 +1,50 @@
+#!/bin/bash
+# returns JSON value for account information for letsencrypt
+# as it is registed and managed by certbot
+# requires jq to be installed on target system
+# Ansible Managed
+
+VAR_OUTPUT=""
+VAR_BASE_DIR="/etc/letsencrypt"
+if [ -d $VAR_BASE_DIR ]; then
+  VAR_ACCTS_DIR="$VAR_BASE_DIR/accounts"
+  if [ -d $VAR_ACCTS_DIR ]; then
+    VAR_PROD_DIR_NAME=$(ls -t $VAR_ACCTS_DIR | grep -v staging | head -n 1 | xargs)
+    VAR_PROD_DIR="$VAR_ACCTS_DIR/$VAR_PROD_DIR_NAME"
+    VAR_API_VER=$(echo $VAR_PROD_DIR_NAME | awk -F"." '{ print $1 }' | awk -F"-" '{ print $2 }' | tr -d 'v')
+    #in case the redundant 'directory' goes away, include that case here
+    if [ -d "$VAR_PROD_DIR/directory" ]; then
+      VAR_ACCT_BASE_DIR="$VAR_PROD_DIR/directory"
+    else
+      VAR_ACCT_BASE_DIR="$VAR_PROD_DIR"
+      #add new cases here as needed
+    fi
+    VAR_ACCT_DIR=$(ls -t $VAR_ACCT_BASE_DIR | head -n 1 | xargs)
+    #validate the acct directory as one before returning
+    if [ -d "$VAR_ACCT_BASE_DIR/$VAR_ACCT_DIR" ]; then
+      VAR_ACCT_PATH="$VAR_ACCT_BASE_DIR/$VAR_ACCT_DIR"
+      #scrape account info
+      VAR_REG_HOST=$(cat $VAR_ACCT_PATH/meta.json | jq .creation_host | tr -d '"')
+      VAR_REG_DATE=$(cat $VAR_ACCT_PATH/meta.json | jq .creation_dt | tr -d '"')
+      VAR_ACCT_ID=$(cat $VAR_ACCT_PATH/regr.json | jq .uri | tr -d '"' | awk -F"/" '{ print $NF }')
+    else
+      VAR_OUTPUT="error: trouble locating account directory ($VAR_ACCT_DIR)"
+    fi
+  else
+    VAR_OUTPUT="error: le account directory missing"
+  fi
+else
+  VAR_OUTPUT="error: le missing"
+fi
+
+if [ -n "$VAR_OUTPUT" ]; then
+  echo \"$VAR_OUTPUT\"
+else
+  echo "{ \"account_uuid\":      \"$VAR_ACCT_DIR\",
+          \"account_number\":    \"$VAR_ACCT_ID\",
+          \"account_path\":      \"$VAR_ACCT_PATH\",
+          \"api_version\":       \"$VAR_API_VER\",
+          \"api_path\":          \"$VAR_PROD_DIR\",
+          \"registered_host\":   \"$VAR_REG_HOST\",
+          \"registration_date\": \"$VAR_REG_DATE\"}"
+fi

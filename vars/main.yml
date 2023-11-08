@@ -1,0 +1,22 @@
+---
+# vars file for netbox-build
+
+#don't change these -- bad things will likely happen
+var_service_name: netbox
+var_unix_user_name: "{{ var_service_name }}" 
+
+#not a good idea to change this either unless an upgrade requires it
+var_netbox_configuration_file: /opt/netbox/netbox/configuration.py
+#the install script has expected configuration.py in different places across major versions, 
+#expect this to change again and modify as needed
+var_netbox_configuration_file_alt_location: /opt/netbox/netbox/netbox/configuration.py
+
+#domain name hosted by Cloudflare that netbox will be hosted under, override in inventory
+var_service_domain: domain.tld
+
+#this is for LE, var_service_url_string in defaults/main.yml
+var_domain_string: "{{ var_service_url_string | replace(\"',\",\" \") | replace(\"'\",\"-d \") }}"
+
+#for permissions on the /etc/ansible/facts directory
+var_ansible_service_account_group_name: ansible
+
